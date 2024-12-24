@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beam Analysis Plot</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <form>
@@ -52,9 +53,9 @@
             </tr>
         </table>
     </form>
-    <canvas id="deflection_plot"></canvas>
-    <canvas id="shear_force_plot"></canvas>
-    <canvas id="bending_moment_plot"></canvas>
+    <canvas id="deflection_plot" width="600" height="400"></canvas>
+    <canvas id="shear_force_plot" width="600" height="400"></canvas>
+    <canvas id="bending_moment_plot" width="600" height="400"></canvas>
 
     <script src="js/beam-analysis.js"></script>
     <script src="js/analysis-plotter.js"></script>
@@ -73,29 +74,44 @@
             return document.getElementById(id).value;
         }
 
-        document.getElementById('calculate').addEventListener('click', function(e) {
-            var beam = new Beam();
-
-            beam.primarySpan    = floatVal('primarySpan');
-            beam.secondarySpan  = floatVal('secondarySpan');
-            beam.material       = new Material('No Name', {
-                EI : floatVal('EI')
-            });
-
-            var plotter = {
-                deflection      : new AnalysisPlotter('deflection_plot'),
-                shearForce      : new AnalysisPlotter('shear_force_plot'),
-                bendingMoment   : new AnalysisPlotter('bending_moment_plot')
+        function generatePlotData(equation, maxSpan, step = 0.1) {
+            const xValues = [];
+            const yValues = [];
+            for (let x = 0; x <= maxSpan; x += step) {
+                xValues.push(x);
+                yValues.push(equation(x).y);
             }
+            return { x: xValues, y: yValues };
+        }
 
-            var beamAnalysis        = new BeamAnalysis();
-            var deflectionData      = beamAnalysis.getDeflection(beam, floatVal('w'), stringVal('condition'));
-            var bendingMomentData   = beamAnalysis.getBendingMoment(beam, floatVal('w'), stringVal('condition'));
-            var shearForceData      = beamAnalysis.getShearForce(beam, floatVal('w'), stringVal('condition'));
+        document.getElementById('calculate').addEventListener('click', function(e) {
+            const beam = new Beam(
+                floatVal('primarySpan'),
+                floatVal('secondarySpan'),
+                new Material('No Name', { EI: floatVal('EI') })
+            );
 
-            plotter.deflection.plot(deflectionData);
-            plotter.shearForce.plot(shearForceData);
-            plotter.bendingMoment.plot(bendingMomentData);
+            const maxSpan = beam.primarySpan + (beam.secondarySpan || 0);
+
+            const beamAnalysis = new BeamAnalysis();
+
+            const deflectionEquation = beamAnalysis.getDeflection(beam, floatVal('w'), stringVal('condition')).equation;
+            const bendingMomentEquation = beamAnalysis.getBendingMoment(beam, floatVal('w'), stringVal('condition')).equation;
+            const shearForceEquation = beamAnalysis.getShearForce(beam, floatVal('w'), stringVal('condition')).equation;
+
+            const deflectionData = generatePlotData(deflectionEquation, maxSpan);
+            const bendingMomentData = generatePlotData(bendingMomentEquation, maxSpan);
+            const shearForceData = generatePlotData(shearForceEquation, maxSpan);
+
+            const plotter = {
+                deflection: new AnalysisPlotter('deflection_plot'),
+                bendingMoment: new AnalysisPlotter('bending_moment_plot'),
+                shearForce: new AnalysisPlotter('shear_force_plot')
+            };
+
+            plotter.deflection.plot(deflectionData, { type: 'line', label: 'Deflection', xLabel: 'Position (x)', yLabel: 'Deflection (y)' });
+            plotter.bendingMoment.plot(bendingMomentData, { type: 'line', label: 'Bending Moment', xLabel: 'Position (x)', yLabel: 'Bending Moment (y)' });
+            plotter.shearForce.plot(shearForceData, { type: 'line', label: 'Shear Force', xLabel: 'Position (x)', yLabel: 'Shear Force (y)' });
         });
     </script>
 </body>
