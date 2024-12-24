@@ -105,31 +105,57 @@ BeamAnalysis.analyzer = {};
  * @param {Number}  load    The applied load
  */
 BeamAnalysis.analyzer.simplySupported = class {
-    constructor(beam, load) {
-        this.beam = beam;
-        this.load = load;
-    }
+    // constructor(beam, load) {
+    //     this.beam = beam;
+    //     this.load = load;
+    // }
     getDeflectionEquation(beam, load) {
+        const { primarySpan } = beam
+        const EI = beam.material.properties.EI
         return function (x) {
+            const L = primarySpan
+            const w = load
+            let y = 0
+
+            if (x >= 0 && x <= L) {
+                y = -((w * x) / (24 * EI)) * (L ** 3 - 2 * L * x ** 2 + x ** 3) * 1000
+            }
+
             return {
                 x: x,
-                y: null
+                y: y
             };
         };
     }
     getBendingMomentEquation(beam, load) {
+        const { primarySpan } = beam
         return function (x) {
+            const L = primarySpan
+            const w = load
+            let M = 0
+
+            if (x >= 0 && x <= L) {
+                M = -((w * x) / 2) * (L - x)
+            }
             return {
                 x: x,
-                y: null
+                y: M
             };
         };
     }
     getShearForceEquation(beam, load) {
+        const { primarySpan } = beam
         return function (x) {
+            const L = primarySpan
+            const w = load
+            let V = 0
+
+            if (x >= 0 && x <= L) {
+                V = w * ((L / 2) - x)
+            }
             return {
                 x: x,
-                y: null
+                y: V
             };
         };
     }
@@ -148,26 +174,64 @@ BeamAnalysis.analyzer.twoSpanUnequal = class {
         this.load = load;
     }
     getDeflectionEquation(beam, load) {
+        const { L1, L2 } = beam
+        const { w1, w2, R1, R2, R3 } = load
         return function (x) {
+            let V = 0
+            if (x === 0) { 
+                V = R1
+            } else if (x > 0 && x <= L1) {
+                V = R1 - w1 * x
+            } else if (x > L1 && x <= L1 + L2) {
+                const x2 = x - L1
+                V = R1 + R2 - w1 * L1 - w2 * x2
+            } else if (x > L1 + L2) {
+                V = R1 + R2 + R3 - w1 * L1 - w2 * L2
+            }
             return {
                 x: x,
-                y: null
+                y: V.toFixed(2),
             };
         };
     }
     getBendingMomentEquation(beam, load) {
+        const { L1, L2 } = beam
+        const { w1, w2, R1, R2, R3 } = load
         return function (x) {
+            let M = 0
+            if (x === 0) {
+                M = 0
+            } else if (x > 0 && x <= L1) {
+                M = R1 * x - (w1 * Math.pow(x, 2)) / 2
+            } else if (x > L1 && x <= L1 + L2) {
+                const x2 = x - L1
+                M = R1 * x + R2 * x2 - (w1 * Math.pow(L1, 2)) / 2 - (w2 * Math.pow(x2, 2)) / 2
+            } else if (x > L1 + L2) {
+                M = 0
+            }
             return {
                 x: x,
-                y: null
+                y: M.toFixed(2),
             };
         };
     }
     getShearForceEquation(beam, load) {
+        const { L1, L2 } = beam
+        const { w1, w2, R1, R2, R3 } = load
         return function (x) {
+            let V = 0
+            if (x === 0) {
+                V = R1
+            } else if (x > 0 && x <= L1) {
+                V = R1 - (w1 * x)
+            } else if (x > L1 && x <= L1 + L2) {
+                V = R1 + R2 - (w1 * L1) - (w2 * (x - L1))
+            } else if (x > L1 + L2) {
+                V = R1 + R2 + R3 - (w1 * L1) - (w2 * L2)
+            }
             return {
                 x: x,
-                y: null
+                y: V.toFixed(2),
             };
         };
     }
