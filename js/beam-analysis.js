@@ -174,23 +174,25 @@ BeamAnalysis.analyzer.twoSpanUnequal = class {
         this.load = load;
     }
     getDeflectionEquation(beam, load) {
-        const { L1, L2 } = beam
-        const { w1, w2, R1, R2, R3 } = load
         return function (x) {
+            const j2 = floatVal("j2");
+            const L1 = beam.primarySpan
+            const L2 = beam.secondarySpan
+            const w = load
+            const M1 = (Math.pow(w*L2,3) + Math.pow(w*L1,3)) / (8*(L1+L2))
+            const R1 = (M1/L1) + ((w*L1)/2)
+            const R3 = (M1/L2) + ((w*L2)/2)
+            const R2 = w*L1 + w*L2 -R1 - R3
+            const EI = beam.material.properties.EI / 1e9
             let V = 0
-            if (x === 0) { 
-                V = R1
-            } else if (x > 0 && x <= L1) {
-                V = R1 - w1 * x
-            } else if (x > L1 && x <= L1 + L2) {
-                const x2 = x - L1
-                V = R1 + R2 - w1 * L1 - w2 * x2
-            } else if (x > L1 + L2) {
-                V = R1 + R2 + R3 - w1 * L1 - w2 * L2
+            if (x <= L1) {
+                V = x/24*(EI/Math.pow(1000,3))*((4*R1*Math.pow(x,2)) - (w*Math.pow(x,3)) + (w*Math.pow(L1,3)) - (4*R1*Math.pow(L1,2))) * (1000 * j2)
+            } else if (L1 <= L1 + L2) {
+                V = (((R1*x)/6)*(Math.pow(x,2) - Math.pow(L1,2)) + ((R2*x)/6)*(Math.pow(x,2)-(3*L1*x)+(3*Math.pow(L1,2))) - ((R2*Math.pow(L1,3))/6) - ((w*x)/24)*(Math.pow(x,3) - Math.pow(L1,3)))*(1/(EI/Math.pow(1000,3)))*(1000*j2)
             }
             return {
                 x: x,
-                y: V.toFixed(2),
+                y: V,
             };
         };
     }
@@ -216,22 +218,34 @@ BeamAnalysis.analyzer.twoSpanUnequal = class {
         };
     }
     getShearForceEquation(beam, load) {
-        const { L1, L2 } = beam
-        const { w1, w2, R1, R2, R3 } = load
+        const j2 = floatVal("j2")*1000;
+        const L1 = beam.primarySpan
+        const L2 = beam.secondarySpan
+        const w = load
+        const M1 = (Math.pow(w*L2,3) + Math.pow(w*L1,3)) / (8*(L1+L2))
+        const R1 = (M1/L1) + ((w*L1)/2)
+        const R3 = (M1/L2) + ((w*L2)/2)
+        const R2 = w*L1 + w*L2 -R1 - R3
+        const EI = beam.material.properties.EI
+        const L = L1 + L2
         return function (x) {
             let V = 0
-            if (x === 0) {
+            if (x == 0) {
                 V = R1
-            } else if (x > 0 && x <= L1) {
-                V = R1 - (w1 * x)
-            } else if (x > L1 && x <= L1 + L2) {
-                V = R1 + R2 - (w1 * L1) - (w2 * (x - L1))
-            } else if (x > L1 + L2) {
-                V = R1 + R2 + R3 - (w1 * L1) - (w2 * L2)
+            } else if (x < L1) {
+                V = R1 - w * x
+            } else if (x == L1) {
+                V = R1 - (w * L1)
+            } else if (x == L2) {
+                V = R1 + R2 - (w * L1)
+            } else if (L1 < x < L) {
+                V = R1 + R2 - (w*x)
+            } else if (x == L) {
+                V = R1 + R2 - (w*L)
             }
             return {
                 x: x,
-                y: V.toFixed(2),
+                y: V,
             };
         };
     }
